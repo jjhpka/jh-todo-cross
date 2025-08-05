@@ -26,8 +26,7 @@ const loadWindowPosition = () => {
       
       // 빈 파일이거나 유효하지 않은 JSON인 경우 처리
       if (!data || data.trim() === '') {
-        console.log('Position file is empty, deleting it');
-        fs.unlinkSync(filePath);
+        console.log('Position file is empty');
         return null;
       }
       
@@ -37,17 +36,6 @@ const loadWindowPosition = () => {
     }
   } catch (error) {
     console.log('Failed to load window position:', error.message);
-    
-    // 손상된 파일 삭제
-    try {
-      const filePath = getPositionFilePath();
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        console.log('Deleted corrupted position file');
-      }
-    } catch (deleteError) {
-      console.log('Failed to delete corrupted file:', deleteError.message);
-    }
   }
   return null;
 };
@@ -62,7 +50,7 @@ function createWindow() {
     x: savedPosition ? savedPosition.x : undefined,
     y: savedPosition ? savedPosition.y : undefined,
     alwaysOnTop: true,        
-    resizable: true,            // 너비는 사용자가 직접 조절 가능하게
+    resizable: true,            // 사용자 리사이즈 가능
     movable: true,            
     skipTaskbar: false,       
     frame: false,              // 제목바 숨김

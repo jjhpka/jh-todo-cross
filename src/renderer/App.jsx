@@ -6,7 +6,7 @@ const TodoList = ({ todos, toggleTodo, deleteTodo, isMinimized }) => {
   return (
     <div style={{ 
       width: '100%',
-      maxHeight: isMinimized ? '300px' : '400px',
+      maxHeight: isMinimized ? '100px' : '300px', // 더 작은 maxHeight로 스크롤 유도
       overflowY: 'auto',
       scrollbarWidth: 'thin',
       scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
@@ -267,36 +267,21 @@ function TodoApp() {
     localStorage.setItem('todos', JSON.stringify(todos));
   }, [todos]);
 
-  // 창 높이 자동 조절 - 디바운싱으로 무한 루프 방지
+  // 창 높이를 고정 크기로 설정 (스크롤을 위해)
   useEffect(() => {
-    const updateWindowHeight = () => {
-      const appElement = document.getElementById('todo-app-root') || document.querySelector('[data-app-container="true"]');
-      if (appElement && window.electronAPI) {
-        const rect = appElement.getBoundingClientRect();
-        const contentHeight = rect.height;
-        
-        let newHeight;
-        if (isMinimized) {
-          // 축소 상태: 컨텐츠 높이에 최소 여백만 추가, 최대 200px
-          newHeight = Math.min(contentHeight + 10, 200);
-        } else {
-          // 확장 상태: 더 작은 기본 높이
-          const baseHeight = 180;
-          const maxHeight = 500;
-          newHeight = Math.min(Math.max(contentHeight + 15, baseHeight), maxHeight);
-        }
-        
-        console.log('Updating window height:', { isMinimized, contentHeight, newHeight });
-        window.electronAPI.updateWindowHeight(newHeight);
+    const updateHeight = () => {
+      if (window.electronAPI) {
+        const fixedHeight = isMinimized ? 180 : 550; // 높이를 더 크게 설정
+        console.log('Setting fixed window height:', { isMinimized, fixedHeight });
+        window.electronAPI.updateWindowHeight(fixedHeight);
       }
     };
-
-    const timeoutId = setTimeout(updateWindowHeight, 100); // 디바운싱
     
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [todos.length, filter, isMinimized]); // 더 구체적인 의존성
+    // 약간의 지연을 두고 높이 설정
+    const timeoutId = setTimeout(updateHeight, 50);
+    
+    return () => clearTimeout(timeoutId);
+  }, [isMinimized]); // isMinimized 변경 시에만 높이 조절
 
   // 드래그 이벤트 리스너 설정
   useEffect(() => {
@@ -394,26 +379,24 @@ function TodoApp() {
     const newMinimizedState = !isMinimized;
     setIsMinimized(newMinimizedState);
     
-    // IPC를 통해 창 너비 조절 (상태별 다른 너비 사용)
+    // 너비와 높이를 동시에 조절
     setTimeout(() => {
       if (window.electronAPI) {
+        // 너비 조절
         const targetWidth = newMinimizedState ? dynamicWidth : expandedDynamicWidth;
         const numericWidth = Math.round(Number(targetWidth));
         
         if (numericWidth && numericWidth > 0) {
           console.log('Toggle minimize width update:', { newMinimizedState, numericWidth });
           window.electronAPI.updateWindowWidth(numericWidth);
-        } else {
-          console.log('Invalid toggle width:', { targetWidth, numericWidth });
         }
-      } else {
-        console.log('Toggle minimize - API not available:', { 
-          electronAPI: !!window.electronAPI, 
-          dynamicWidth,
-          expandedDynamicWidth 
-        });
+        
+        // 고정 높이 설정
+        const fixedHeight = newMinimizedState ? 180 : 550;
+        console.log('Toggle minimize height update:', { newMinimizedState, fixedHeight });
+        window.electronAPI.updateWindowHeight(fixedHeight);
       }
-    }, 8); // 20ms에서 8ms로 단축
+    }, 8);
   };
 
   // 더블클릭으로 축소/확장 토글
