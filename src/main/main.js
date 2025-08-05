@@ -44,27 +44,42 @@ function createWindow() {
   // 저장된 위치 불러오기
   const savedPosition = loadWindowPosition();
   
-  const win = new BrowserWindow({
+  // 플랫폼별 설정
+  const isMac = process.platform === 'darwin';
+  const isWindows = process.platform === 'win32';
+  
+  const windowOptions = {
     width: 200,
     height: 300,
     x: savedPosition ? savedPosition.x : undefined,
     y: savedPosition ? savedPosition.y : undefined,
     alwaysOnTop: true,        
-    resizable: true,            // 사용자 리사이즈 가능
+    resizable: true,
     movable: true,            
     skipTaskbar: false,       
-    frame: false,              // 제목바 숨김
-    titleBarStyle: 'customButtonsOnHover', // macOS의 트래픽 라이트 버튼 유지
-    transparent: true,        // 배경 투명하게
-    vibrancy: 'ultra-dark',   // 더 나은 투명 효과 (light, dark, ultra-dark, etc.)
-    visualEffectState: 'active',
-    minWidth: 200,             // 최소 너비
-    maxWidth: 500,             // 최대 너비
+    frame: false,
+    transparent: true,
+    minWidth: 200,
+    maxWidth: 500,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
     }
-  });
+  };
+
+  // macOS 전용 설정들
+  if (isMac) {
+    windowOptions.titleBarStyle = 'customButtonsOnHover';
+    windowOptions.vibrancy = 'ultra-dark';
+    windowOptions.visualEffectState = 'active';
+  }
+  
+  // Windows 전용 설정들
+  if (isWindows) {
+    windowOptions.backgroundColor = '#00000000'; // 투명 배경
+  }
+  
+  const win = new BrowserWindow(windowOptions);
 
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:8080');
@@ -145,8 +160,10 @@ function createWindow() {
   });
 
   
-  // macOS에서 독에 표시
-  app.dock.show();
+  // macOS에서만 독에 표시
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.show();
+  }
 }
 
 // 앱이 준비되면 창 생성
