@@ -54,3 +54,7 @@ release/
 # Temporary files
 .tmp/
 .temp/
+
+# Claude AI files
+.claude/
+CLAUDE.md
