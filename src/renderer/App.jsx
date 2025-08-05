@@ -274,9 +274,18 @@ function TodoApp() {
       if (appElement && window.electronAPI) {
         const rect = appElement.getBoundingClientRect();
         const contentHeight = rect.height;
-        const baseHeight = isMinimized ? 150 : 250;
-        const maxHeight = isMinimized ? 500 : 700;
-        const newHeight = Math.min(Math.max(contentHeight + 20, baseHeight), maxHeight);
+        
+        let newHeight;
+        if (isMinimized) {
+          // 축소 상태: 컨텐츠 높이에 최소 여백만 추가, 최대 200px
+          newHeight = Math.min(contentHeight + 10, 200);
+        } else {
+          // 확장 상태: 더 작은 기본 높이
+          const baseHeight = 180;
+          const maxHeight = 500;
+          newHeight = Math.min(Math.max(contentHeight + 15, baseHeight), maxHeight);
+        }
+        
         console.log('Updating window height:', { isMinimized, contentHeight, newHeight });
         window.electronAPI.updateWindowHeight(newHeight);
       }
