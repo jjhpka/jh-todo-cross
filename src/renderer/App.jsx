@@ -418,17 +418,22 @@ function TodoApp() {
 
   // 더블클릭으로 축소/확장 토글
   const handleDoubleClick = useCallback((e) => {
-    // 버튼, 입력 필드, 체크박스가 아닌 빈 영역에서만 동작
-    const isInteractiveElement = e.target.tagName === 'BUTTON' || 
-                                e.target.tagName === 'INPUT' || 
-                                e.target.type === 'checkbox' ||
-                                e.target.closest('button') ||
-                                e.target.closest('input');
-    
-    if (!isInteractiveElement) {
+    if (isMinimized) {
+      // 축소 상태에서는 아무 곳이나 더블클릭해도 확장
       toggleMinimize();
+    } else {
+      // 확장 상태에서는 버튼, 입력 필드, 체크박스가 아닌 빈 영역에서만 동작
+      const isInteractiveElement = e.target.tagName === 'BUTTON' || 
+                                  e.target.tagName === 'INPUT' || 
+                                  e.target.type === 'checkbox' ||
+                                  e.target.closest('button') ||
+                                  e.target.closest('input');
+      
+      if (!isInteractiveElement) {
+        toggleMinimize();
+      }
     }
-  }, []);
+  }, [isMinimized]);
 
   return (
     <div 
