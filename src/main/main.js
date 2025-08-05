@@ -49,18 +49,20 @@ function createWindow() {
   const isWindows = process.platform === 'win32';
   
   const windowOptions = {
-    width: 200,
-    height: 300,
+    width: 280,
+    height: 600,
     x: savedPosition ? savedPosition.x : undefined,
     y: savedPosition ? savedPosition.y : undefined,
     alwaysOnTop: true,        
-    resizable: true,
+    resizable: false,
     movable: true,            
     skipTaskbar: false,       
     frame: false,
     transparent: true,
     minWidth: 200,
     maxWidth: 500,
+    minHeight: 160,
+    maxHeight: 800,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
@@ -81,15 +83,42 @@ function createWindow() {
   
   const win = new BrowserWindow(windowOptions);
 
+  // 디버깅을 위해 개발자 도구 열기
+  win.webContents.openDevTools();
+
+  console.log('Loading application...');
+  
   if (process.env.NODE_ENV === 'development') {
+    console.log('Loading development URL: http://localhost:8080');
     win.loadURL('http://localhost:8080');
   } else {
+    console.log('Loading production file: dist/index.html');
     win.loadFile('dist/index.html');
   }
+  
+  // 로딩 이벤트 리스너 추가
+  win.webContents.on('did-start-loading', () => {
+    console.log('Started loading page...');
+  });
+  
+  win.webContents.on('did-finish-load', () => {
+    console.log('Finished loading page');
+  });
+  
+  win.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('Failed to load page:', errorCode, errorDescription, validatedURL);
+  });
 
-  // 페이지가 로드된 후 API 노출
+  // 페이지가 로드된 후 API 노출 및 드래그 설정
   win.webContents.once('dom-ready', () => {
+    console.log('DOM is ready, injecting scripts...');
+    
     win.webContents.executeJavaScript(`
+      console.log('Executing JavaScript injection...');
+      console.log('Document body:', document.body);
+      console.log('Root element:', document.getElementById('root'));
+      
+      // ElectronAPI 설정
       window.electronAPI = {
         moveWindow: (deltaX, deltaY) => {
           const { ipcRenderer } = window.require('electron');
@@ -104,30 +133,57 @@ function createWindow() {
           ipcRenderer.send('update-window-width', width);
         }
       };
-      console.log('ElectronAPI loaded successfully');
+      
+      // CSS로 드래그 영역 설정
+      const style = document.createElement('style');
+      style.textContent = \`
+        #todo-app-root {
+          -webkit-app-region: drag;
+        }
+        
+        /* 상호작용 요소들은 드래그 비활성화 */
+        input, button, [type="checkbox"] {
+          -webkit-app-region: no-drag;
+        }
+        
+        .minimize-toggle {
+          -webkit-app-region: no-drag;
+        }
+      \`;
+      document.head.appendChild(style);
+      
+      console.log('ElectronAPI and drag styles loaded successfully');
+      
+      // React 앱 로딩 상태 확인
+      setTimeout(() => {
+        console.log('Checking React app after 2 seconds...');
+        console.log('Root innerHTML:', document.getElementById('root').innerHTML);
+        console.log('Todo app root:', document.getElementById('todo-app-root'));
+      }, 2000);
     `).catch(error => {
       console.error('Failed to inject electronAPI:', error);
     });
   });
 
-  // 창 이동 처리 - 120fps 즉시 이동
-  ipcMain.on('move-window', (event, deltaX, deltaY) => {
-    const [currentX, currentY] = win.getPosition();
-    const newX = currentX + deltaX;
-    const newY = currentY + deltaY;
-    win.setPosition(newX, newY);
-  });
-
   // 창 높이 조절 처리
   ipcMain.on('update-window-height', (event, height) => {
     const [currentWidth, currentHeight] = win.getSize();
+    const numericHeight = Math.round(Number(height));
     
-    console.log('Current height:', currentHeight, 'New height:', height);
+    console.log('Current height:', currentHeight, 'New height:', numericHeight);
+    
+    // 유효성 검사
+    if (!numericHeight || numericHeight < 160 || numericHeight > 800) {
+      console.log('Invalid height:', height, 'converted:', numericHeight);
+      return;
+    }
     
     // 현재 높이와 새로운 높이가 다른 경우에만 업데이트
-    if (Math.abs(currentHeight - height) > 10) { // 10px 이상 차이가 있을 때만 업데이트
-      win.setSize(currentWidth, Math.round(height), true); // animate: true로 변경하여 부드러운 전환
-      console.log('Window resized to:', Math.round(height));
+    if (Math.abs(currentHeight - numericHeight) > 3) {
+      win.setSize(currentWidth, numericHeight, false); // animate: false로 즉시 변경
+      console.log('Window height resized to:', numericHeight);
+    } else {
+      console.log('Height difference too small, skipping resize');
     }
   });
 
@@ -140,7 +196,7 @@ function createWindow() {
       // 숫자로 변환하고 유효성 검사
       const numericWidth = Math.round(Number(width));
       
-      if (!numericWidth || numericWidth <= 0 || numericWidth > 2000) {
+      if (!numericWidth || numericWidth < 200 || numericWidth > 500) {
         console.log('Invalid width received:', width, 'converted:', numericWidth);
         return;
       }
@@ -150,13 +206,13 @@ function createWindow() {
       console.log('Current width:', currentWidth, 'New width:', numericWidth);
       
       // 현재 너비와 새로운 너비가 다른 경우에만 업데이트
-      if (Math.abs(currentWidth - numericWidth) > 1) { // 1px까지 민감하게
-        win.setSize(numericWidth, currentHeight, true); // animate: true로 부드러운 전환
-        console.log('Window resized to:', numericWidth);
+      if (Math.abs(currentWidth - numericWidth) > 2) {
+        win.setSize(numericWidth, currentHeight, false); // animate: false로 즉시 변경
+        console.log('Window width resized to:', numericWidth);
       } else {
         console.log('Width difference too small, skipping resize');
       }
-    }, 8); // 30ms에서 8ms로 단축 (120fps)
+    }, 16); // 16ms로 조정 (60fps)
   });
 
   

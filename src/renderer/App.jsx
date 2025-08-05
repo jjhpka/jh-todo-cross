@@ -4,37 +4,41 @@ import ReactDOM from 'react-dom/client';
 const TodoList = ({ todos, toggleTodo, deleteTodo, isMinimized }) => {
 
   return (
-    <div style={{ 
-      width: '100%',
-      maxHeight: isMinimized ? '100px' : '300px', // 더 작은 maxHeight로 스크롤 유도
-      overflowY: 'auto',
-      scrollbarWidth: 'thin',
-      scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
-    }}>
+    <div 
+      className="todo-list-container"
+      style={{ 
+        width: '100%',
+        maxHeight: isMinimized ? '100px' : '300px',
+        overflowY: 'auto',
+        overflowX: 'hidden'
+      }}>
       <div style={{ 
         listStyle: 'none', 
         padding: 0, 
         margin: 0
       }}>
         {todos.map((todo, index) => (
-          <div key={todo.id} style={{ 
-            marginBottom: isMinimized ? (index === todos.length - 1 ? '0px' : '4px') : '8px',
-            padding: '12px',
-            backgroundColor: 'rgba(255, 255, 255, 0.02)',
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            animation: `slideInFromRight 0.3s ease-out ${index * 0.05}s both`,
-            transition: 'all 0.2s ease-out'
-          }}
+          <div 
+            key={todo.id} 
+            className="todo-item"
+            style={{ 
+              marginBottom: isMinimized ? (index === todos.length - 1 ? '0px' : '4px') : '8px',
+              padding: '12px',
+              backgroundColor: 'rgba(255, 255, 255, 0.02)',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              animation: `slideInFromRight 0.3s ease-out ${index * 0.05}s both`,
+              transition: 'all 0.2s ease-out'
+            }}
           onMouseOver={(e) => {
             e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-            e.currentTarget.style.transform = 'translateX(5px)';
+            e.currentTarget.style.transform = 'scale(1.02)';
           }}
           onMouseOut={(e) => {
             e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
-            e.currentTarget.style.transform = 'translateX(0)';
+            e.currentTarget.style.transform = 'scale(1)';
           }}>
             {!isMinimized && (
               <input
@@ -103,39 +107,37 @@ const TodoList = ({ todos, toggleTodo, deleteTodo, isMinimized }) => {
 const addGlobalStyles = () => {
   const styleSheet = document.createElement('style');
   styleSheet.textContent = `
+    /* 개별 할일 아이템은 스크롤 방지 */
+    .todo-item {
+      overflow: hidden;
+    }
+    
+    /* 할일 목록 컨테이너는 스크롤바 스타일링 */
+    .todo-list-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .todo-list-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .todo-list-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+    
+    .todo-list-container::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
     @keyframes slideInFromRight {
       0% {
-        transform: translateX(30px);
+        transform: translateY(10px);
         opacity: 0;
       }
       100% {
-        transform: translateX(0);
-        opacity: 1;
-      }
-    }
-    
-    @keyframes slideOut {
-      0% {
-        transform: translateX(0);
-        opacity: 1;
-        max-height: 100px;
-      }
-      100% {
-        transform: translateX(-100px);
-        opacity: 0;
-        max-height: 0;
-      }
-    }
-    
-    @keyframes bounce {
-      0%, 20%, 50%, 80%, 100% {
         transform: translateY(0);
-      }
-      40% {
-        transform: translateY(-10px);
-      }
-      60% {
-        transform: translateY(-5px);
+        opacity: 1;
       }
     }
     
@@ -147,18 +149,6 @@ const addGlobalStyles = () => {
       100% {
         transform: translateY(0);
         opacity: 1;
-      }
-    }
-    
-    @keyframes pulse {
-      0% {
-        box-shadow: 0 0 0 0 rgba(253, 121, 168, 0.7);
-      }
-      70% {
-        box-shadow: 0 0 0 10px rgba(253, 121, 168, 0);
-      }
-      100% {
-        box-shadow: 0 0 0 0 rgba(253, 121, 168, 0);
       }
     }
     
@@ -181,78 +171,16 @@ function TodoApp() {
   const [todos, setTodos] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [filter, setFilter] = useState('all'); // all, active, completed
-  const [isDragging, setIsDragging] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [dynamicWidth, setDynamicWidth] = useState(200);
   const [expandedDynamicWidth, setExpandedDynamicWidth] = useState(280);
-  const dragStartPos = useRef({ x: 0, y: 0 });
-
-  // Electron 창 드래그 기능
-  const handleMouseDown = useCallback((e) => {
-    // 입력 필드와 버튼에서는 드래그 비활성화
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.closest('button')) {
-      return;
-    }
-    
-    // 토글 버튼에서는 드래그 비활성화
-    if (e.target.classList.contains('minimize-toggle')) {
-      return;
-    }
-    
-    setIsDragging(true);
-    dragStartPos.current = { x: e.clientX, y: e.clientY };
-    
-    // 마우스 커서 변경
-    document.body.style.cursor = 'move';
-    document.body.style.userSelect = 'none';
-  }, []);
-
-  const handleMouseMove = useCallback((e) => {
-    if (!isDragging) return;
-
-    const deltaX = e.clientX - dragStartPos.current.x;
-    const deltaY = e.clientY - dragStartPos.current.y;
-
-    // 120fps를 위한 requestAnimationFrame 사용
-    requestAnimationFrame(() => {
-      if (window.electronAPI) {
-        window.electronAPI.moveWindow(deltaX, deltaY);
-      } else {
-        console.log('Move window:', deltaX, deltaY);
-      }
-    });
-  }, [isDragging]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-  }, []);
+  const containerRef = useRef(null);
 
   // 글로벌 스타일 추가
   useEffect(() => {
     addGlobalStyles();
   }, []);
-
-  // ElectronAPI 로드 확인 및 초기 너비 설정
-  useEffect(() => {
-    const checkAPI = () => {
-      if (window.electronAPI) {
-        console.log('ElectronAPI is available');
-        // 초기 너비 설정
-        const initialWidth = isMinimized ? dynamicWidth : expandedDynamicWidth;
-        if (initialWidth && initialWidth > 0) {
-          console.log('Setting initial width:', initialWidth);
-          window.electronAPI.updateWindowWidth(Math.round(initialWidth));
-        }
-      } else {
-        console.log('ElectronAPI not yet available, retrying...');
-        setTimeout(checkAPI, 100);
-      }
-    };
-    checkAPI();
-  }, [dynamicWidth, expandedDynamicWidth, isMinimized]);
 
   // 로컬 스토리지에서 To-Do 불러오기
   useEffect(() => {
@@ -267,34 +195,26 @@ function TodoApp() {
     localStorage.setItem('todos', JSON.stringify(todos));
   }, [todos]);
 
-  // 창 높이를 고정 크기로 설정 (스크롤을 위해)
+  // ElectronAPI 로드 확인 및 크기 동기화
   useEffect(() => {
-    const updateHeight = () => {
-      if (window.electronAPI) {
-        const fixedHeight = isMinimized ? 180 : 550; // 높이를 더 크게 설정
-        console.log('Setting fixed window height:', { isMinimized, fixedHeight });
-        window.electronAPI.updateWindowHeight(fixedHeight);
+    const checkAPI = () => {
+      if (window.electronAPI && containerRef.current) {
+        const containerHeight = containerRef.current.scrollHeight;
+        const totalHeight = containerHeight + 40;
+        const minHeight = isMinimized ? 160 : 250;
+        const maxHeight = 800;
+        const finalHeight = Math.max(minHeight, Math.min(totalHeight, maxHeight));
+        
+        const currentWidth = isMinimized ? dynamicWidth : expandedDynamicWidth;
+        
+        window.electronAPI.updateWindowHeight(Math.round(finalHeight));
+        window.electronAPI.updateWindowWidth(Math.round(currentWidth));
       }
     };
     
-    // 약간의 지연을 두고 높이 설정
-    const timeoutId = setTimeout(updateHeight, 50);
-    
+    const timeoutId = setTimeout(checkAPI, 200);
     return () => clearTimeout(timeoutId);
-  }, [isMinimized]); // isMinimized 변경 시에만 높이 조절
-
-  // 드래그 이벤트 리스너 설정
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+  }, [isMinimized, todos, filter, dynamicWidth, expandedDynamicWidth]);
 
   const addTodo = () => {
     if (inputValue.trim()) {
@@ -322,437 +242,253 @@ function TodoApp() {
     setTodos(todos.filter(todo => !todo.completed));
   };
 
+  const toggleMinimize = () => {
+    setIsMinimized(!isMinimized);
+  };
+
+  const handleDoubleClick = () => {
+    toggleMinimize();
+  };
+
   const filteredTodos = todos.filter(todo => {
     if (filter === 'active') return !todo.completed;
     if (filter === 'completed') return todo.completed;
     return true;
   });
 
-  const remainingCount = todos.filter(todo => !todo.completed).length;
-
-  // 동적 너비 계산 (축소/확장 상태별로 다르게) - 120fps 최적화
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      if (filteredTodos.length > 0) {
-        // 각 todo 텍스트의 길이를 기준으로 최적 너비 계산
-        const maxTextLength = Math.max(...filteredTodos.map(todo => todo.text.length));
-        console.log('Max text length:', maxTextLength);
-        
-        // 축소 상태: 최소 200px, 최대 400px (텍스트만)
-        const minimizedWidth = Math.min(Math.max(maxTextLength * 7 + 50, 200), 400);
-        
-        // 확장 상태: 체크박스(18px) + 간격(12px) + 삭제버튼(20px) + 간격들 고려하여 +70px
-        const expandedWidth = Math.min(Math.max(maxTextLength * 7 + 120, 280), 480);
-        
-        console.log('Calculated widths:', { minimizedWidth, expandedWidth });
-        
-        setDynamicWidth(Math.round(minimizedWidth));
-        setExpandedDynamicWidth(Math.round(expandedWidth));
-      } else {
-        setDynamicWidth(200); // 축소 상태: 200px
-        setExpandedDynamicWidth(280); // 확장 상태: 280px
-        console.log('No todos, using default widths:', { minimized: 200, expanded: 280 });
-      }
-    });
-  }, [filteredTodos]);
-
-  // 너비 변화에 따른 창 크기 업데이트 (smooth transition)
-  useEffect(() => {
-    const updateWidth = () => {
-      if (window.electronAPI) {
-        const currentWidth = isMinimized ? dynamicWidth : expandedDynamicWidth;
-        const numericWidth = Math.round(Number(currentWidth));
-        
-        if (numericWidth && numericWidth > 0) {
-          console.log('Width update:', { isMinimized, numericWidth });
-          window.electronAPI.updateWindowWidth(numericWidth);
-        }
-      }
-    };
-
-    const timeoutId = setTimeout(updateWidth, 200); // 디바운싱
-
-    return () => clearTimeout(timeoutId);
-  }, [dynamicWidth, expandedDynamicWidth, isMinimized]);
-
-  const toggleMinimize = () => {
-    const newMinimizedState = !isMinimized;
-    setIsMinimized(newMinimizedState);
-    
-    // 너비와 높이를 동시에 조절
-    setTimeout(() => {
-      if (window.electronAPI) {
-        // 너비 조절
-        const targetWidth = newMinimizedState ? dynamicWidth : expandedDynamicWidth;
-        const numericWidth = Math.round(Number(targetWidth));
-        
-        if (numericWidth && numericWidth > 0) {
-          console.log('Toggle minimize width update:', { newMinimizedState, numericWidth });
-          window.electronAPI.updateWindowWidth(numericWidth);
-        }
-        
-        // 고정 높이 설정
-        const fixedHeight = newMinimizedState ? 180 : 550;
-        console.log('Toggle minimize height update:', { newMinimizedState, fixedHeight });
-        window.electronAPI.updateWindowHeight(fixedHeight);
-      }
-    }, 8);
-  };
-
-  // 더블클릭으로 축소/확장 토글
-  const handleDoubleClick = useCallback((e) => {
-    if (isMinimized) {
-      // 축소 상태에서는 아무 곳이나 더블클릭해도 확장
-      toggleMinimize();
-    } else {
-      // 확장 상태에서는 버튼, 입력 필드, 체크박스가 아닌 빈 영역에서만 동작
-      const isInteractiveElement = e.target.tagName === 'BUTTON' || 
-                                  e.target.tagName === 'INPUT' || 
-                                  e.target.type === 'checkbox' ||
-                                  e.target.closest('button') ||
-                                  e.target.closest('input');
-      
-      if (!isInteractiveElement) {
-        toggleMinimize();
-      }
-    }
-  }, [isMinimized]);
-
   return (
     <div 
+      ref={containerRef}
       id="todo-app-root"
-      data-app-container="true"
-      onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
       style={{ 
-        padding: isMinimized ? '10px' : '20px 15px', 
-        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, sans-serif',
-        maxWidth: isMinimized ? `${dynamicWidth}px` : `${expandedDynamicWidth}px`,
-        margin: '0 auto',
-        backgroundColor: 'rgba(10, 10, 10, 0.95)', // 더 다크한 배경, 불투명도 0.95
-        backdropFilter: 'blur(10px)', // 흐림 효과
-        borderRadius: '16px', // 둥근 모서리
-        border: '1px solid rgba(255, 255, 255, 0.1)', // 더 어두운 테두리
-        height: 'auto',
-        cursor: isDragging ? 'move' : 'default',
-        userSelect: isDragging ? 'none' : 'auto',
-        transition: 'max-width 0.2s ease-out, padding 0.2s ease-out'
+        width: isMinimized ? `${dynamicWidth}px` : `${expandedDynamicWidth}px`,
+        minHeight: isMinimized ? '120px' : '200px',
+        maxHeight: '800px',
+        padding: '16px',
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        fontSize: '14px',
+        fontWeight: '400',
+        lineHeight: '1.5',
+        color: 'rgba(255, 255, 255, 0.85)',
+        backgroundColor: 'rgba(10, 10, 10, 0.95)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        borderRadius: '16px',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: [
+          '0 8px 32px rgba(0, 0, 0, 0.37)',
+          '0 4px 16px rgba(0, 0, 0, 0.25)',
+          'inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+        ].join(', '),
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        overflow: 'hidden',
+        cursor: isHovered ? 'pointer' : 'default',
+        userSelect: 'none'
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: isMinimized ? '8px' : '20px',
+        paddingBottom: isMinimized ? '0' : '16px',
+        borderBottom: isMinimized ? 'none' : '1px solid rgba(255, 255, 255, 0.08)'
       }}>
-      {/* 축소/확장 토글 버튼 */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '8px',
-          right: '8px',
-          width: '32px',
-          height: '20px',
-          zIndex: 1000
-        }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
+        <h1 style={{
+          margin: 0,
+          fontSize: isMinimized ? '16px' : '20px',
+          fontWeight: '600',
+          color: 'rgba(255, 255, 255, 0.9)',
+          textShadow: '0 1px 2px rgba(0, 0, 0, 0.5)',
+          background: 'linear-gradient(135deg, #fd79a8, #fdcb6e)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          transition: 'all 0.3s ease'
+        }}>
+          {isMinimized ? 'Todo' : 'Simple Todo'}
+        </h1>
+        
         <button
-          onClick={toggleMinimize}
           className="minimize-toggle"
+          onClick={toggleMinimize}
           style={{
-            width: '32px',
-            height: '20px',
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '10px',
+            background: 'rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            borderRadius: '6px',
+            color: 'rgba(255, 255, 255, 0.7)',
             cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '10px',
-            color: 'rgba(255, 255, 255, 0.6)',
-            transition: 'all 0.2s',
-            opacity: isHovered ? 1 : 0
+            fontSize: '12px',
+            padding: '4px 8px',
+            transition: 'all 0.2s ease',
+            backdropFilter: 'blur(10px)'
           }}
           onMouseOver={(e) => {
-            e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-            e.target.style.color = 'rgba(255, 255, 255, 0.8)';
+            e.target.style.background = 'rgba(255, 255, 255, 0.2)';
+            e.target.style.color = 'rgba(255, 255, 255, 0.9)';
+            e.target.style.transform = 'scale(1.05)';
           }}
           onMouseOut={(e) => {
-            e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-            e.target.style.color = 'rgba(255, 255, 255, 0.6)';
+            e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+            e.target.style.color = 'rgba(255, 255, 255, 0.7)';
+            e.target.style.transform = 'scale(1)';
           }}
         >
-          {isMinimized ? '＋' : '－'}
+          {isMinimized ? '▲' : '▼'}
         </button>
       </div>
-      
-      {isMinimized ? (
-        <>
-          {/* 축소 상태: 진행중인 To-Do만 표시 */}
-          <TodoList todos={todos.filter(todo => !todo.completed)} toggleTodo={toggleTodo} deleteTodo={deleteTodo} isMinimized={isMinimized} />
-        </>
-      ) : (
-        <>
-          <h1 style={{ 
-            marginTop: 0, 
-            color: 'rgba(255, 255, 255, 0.9)',
-            fontSize: '24px',
-            fontWeight: '600',
-            textAlign: 'center',
-            textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-            animation: 'fadeInUp 0.8s ease-out',
-            background: 'linear-gradient(135deg, #fd79a8, #fdcb6e, #a29bfe)',
-            backgroundSize: '200% 200%',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            animation: 'fadeInUp 0.4s ease-out, gradientShift 3s ease-in-out infinite'
-          }}>
-            To-Do List
-          </h1>
-      
-      {!isMinimized && (
-        <div style={{ 
-          display: 'flex', 
-          marginBottom: '20px',
-          gap: '10px',
-          alignItems: 'stretch'
-        }}>
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && addTodo()}
-            placeholder="할 일 추가..."
-            style={{ 
-              flex: 1, 
-              padding: '8px 12px', 
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '8px',
-              fontSize: '14px',
-              color: 'rgba(255, 255, 255, 0.9)',
-              outline: 'none',
-              transition: 'all 0.2s ease-out',
-              fontWeight: '400',
-              letterSpacing: '0.01em'
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-              e.target.style.background = 'rgba(255, 255, 255, 0.08)';
-              e.target.style.boxShadow = '0 0 0 1px rgba(255, 255, 255, 0.1)';
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-              e.target.style.background = 'rgba(255, 255, 255, 0.05)';
-              e.target.style.boxShadow = 'none';
-            }}
-          />
-          <button 
-            onClick={addTodo}
-            style={{ 
-              padding: '2px 8px',
-              background: 'linear-gradient(135deg, #a29bfe, #fd79a8)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: '500',
-              transition: 'all 0.15s ease-out',
-              boxShadow: '0 2px 4px rgba(162, 155, 254, 0.3)',
-              backdropFilter: 'blur(10px)'
-            }}
-            onMouseOver={(e) => {
-              e.target.style.background = 'linear-gradient(135deg, #fd79a8, #a29bfe)';
-              e.target.style.transform = 'translateY(-1px) scale(1.05)';
-              e.target.style.boxShadow = '0 4px 8px rgba(162, 155, 254, 0.4), 0 0 0 4px rgba(253, 121, 168, 0.3)';
-              e.target.style.animation = 'pulse 1.5s infinite';
-            }}
-            onMouseOut={(e) => {
-              e.target.style.background = 'linear-gradient(135deg, #a29bfe, #fd79a8)';
-              e.target.style.transform = 'translateY(0) scale(1)';
-              e.target.style.boxShadow = '0 2px 4px rgba(162, 155, 254, 0.3)';
-              e.target.style.animation = 'none';
-            }}
-            onMouseDown={(e) => {
-              e.target.style.animation = 'bounce 0.6s ease-out';
-              setTimeout(() => {
-                e.target.style.animation = 'none';
-              }, 600);
-            }}
-          >
-            추가
-          </button>
-        </div>
-      )}
 
+      {/* Input Section - Hidden when minimized */}
       {!isMinimized && (
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          marginBottom: '16px',
-          fontSize: '12px',
-          color: 'rgba(255, 255, 255, 0.8)'
+        <div style={{
+          marginBottom: '20px',
+          animation: 'fadeInUp 0.3s ease-out'
         }}>
-          <span>{remainingCount}개 남음</span>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button 
-              onClick={() => setFilter('all')}
-              style={{ 
-                background: filter === 'all' ? 'linear-gradient(135deg, #a29bfe, #fd79a8)' : 'rgba(255, 255, 255, 0.05)', 
-                border: 'none', 
-                cursor: 'pointer',
-                color: filter === 'all' ? 'white' : 'rgba(255, 255, 255, 0.6)',
-                fontWeight: filter === 'all' ? '500' : '400',
-                padding: '2px 8px',
-                borderRadius: '6px',
-                transition: 'all 0.15s ease-out',
-                fontSize: '12px',
-                boxShadow: filter === 'all' ? '0 2px 4px rgba(162, 155, 254, 0.3)' : 'none',
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            marginBottom: '12px'
+          }}>
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && addTodo()}
+              placeholder="할 일을 입력하세요..."
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '12px',
+                color: 'rgba(255, 255, 255, 0.9)',
+                fontSize: '14px',
+                outline: 'none',
+                transition: 'all 0.2s ease',
                 backdropFilter: 'blur(10px)'
               }}
-              onMouseOver={(e) => {
-                if (filter === 'all') {
-                  e.target.style.background = 'linear-gradient(135deg, #fd79a8, #a29bfe)';
-                  e.target.style.transform = 'translateY(-1px)';
-                  e.target.style.boxShadow = '0 4px 8px rgba(162, 155, 254, 0.4)';
-                } else {
-                  e.target.style.background = 'rgba(255, 255, 255, 0.1)';
-                  e.target.style.color = 'rgba(255, 255, 255, 0.9)';
-                }
+              onFocus={(e) => {
+                e.target.style.background = 'rgba(255, 255, 255, 0.12)';
+                e.target.style.borderColor = 'rgba(253, 121, 168, 0.5)';
+                e.target.style.boxShadow = '0 0 0 3px rgba(253, 121, 168, 0.1)';
               }}
-              onMouseOut={(e) => {
-                if (filter === 'all') {
-                  e.target.style.background = 'linear-gradient(135deg, #a29bfe, #fd79a8)';
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 2px 4px rgba(162, 155, 254, 0.3)';
-                } else {
-                  e.target.style.background = 'rgba(255, 255, 255, 0.05)';
-                  e.target.style.color = 'rgba(255, 255, 255, 0.6)';
-                }
+              onBlur={(e) => {
+                e.target.style.background = 'rgba(255, 255, 255, 0.08)';
+                e.target.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                e.target.style.boxShadow = 'none';
               }}
-            >
-              전체
-            </button>
-            <button 
-              onClick={() => setFilter('active')}
-              style={{ 
-                background: filter === 'active' ? 'linear-gradient(135deg, #fd79a8, #e84393)' : 'rgba(255, 255, 255, 0.05)', 
-                border: 'none', 
+            />
+            <button
+              onClick={addTodo}
+              style={{
+                padding: '12px 20px',
+                background: 'linear-gradient(135deg, #fd79a8, #fdcb6e)',
+                border: 'none',
+                borderRadius: '12px',
+                color: 'white',
+                fontWeight: '600',
                 cursor: 'pointer',
-                color: filter === 'active' ? 'white' : 'rgba(255, 255, 255, 0.6)',
-                fontWeight: filter === 'active' ? '500' : '400',
-                padding: '2px 8px',
-                borderRadius: '6px',
-                transition: 'all 0.15s ease-out',
-                fontSize: '12px',
-                boxShadow: filter === 'active' ? '0 2px 4px rgba(253, 121, 168, 0.3)' : 'none',
-                backdropFilter: 'blur(10px)'
+                fontSize: '14px',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 15px rgba(253, 121, 168, 0.3)'
               }}
               onMouseOver={(e) => {
-                if (filter === 'active') {
-                  e.target.style.background = 'linear-gradient(135deg, #e84393, #fd79a8)';
-                  e.target.style.transform = 'translateY(-1px)';
-                  e.target.style.boxShadow = '0 4px 8px rgba(253, 121, 168, 0.4)';
-                } else {
-                  e.target.style.background = 'rgba(255, 255, 255, 0.1)';
-                  e.target.style.color = 'rgba(255, 255, 255, 0.9)';
-                }
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 20px rgba(253, 121, 168, 0.4)';
               }}
               onMouseOut={(e) => {
-                if (filter === 'active') {
-                  e.target.style.background = 'linear-gradient(135deg, #fd79a8, #e84393)';
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 2px 4px rgba(253, 121, 168, 0.3)';
-                } else {
-                  e.target.style.background = 'rgba(255, 255, 255, 0.05)';
-                  e.target.style.color = 'rgba(255, 255, 255, 0.6)';
-                }
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 15px rgba(253, 121, 168, 0.3)';
               }}
             >
-              진행중
+              추가
             </button>
-            <button 
-              onClick={() => setFilter('completed')}
-              style={{ 
-                background: filter === 'completed' ? 'linear-gradient(135deg, #e84393, #a29bfe)' : 'rgba(255, 255, 255, 0.05)', 
-                border: 'none', 
-                cursor: 'pointer',
-                color: filter === 'completed' ? 'white' : 'rgba(255, 255, 255, 0.6)',
-                fontWeight: filter === 'completed' ? '500' : '400',
-                padding: '2px 8px',
-                borderRadius: '6px',
-                transition: 'all 0.15s ease-out',
-                fontSize: '12px',
-                boxShadow: filter === 'completed' ? '0 2px 4px rgba(232, 67, 147, 0.3)' : 'none',
-                backdropFilter: 'blur(10px)'
-              }}
-              onMouseOver={(e) => {
-                if (filter === 'completed') {
-                  e.target.style.background = 'linear-gradient(135deg, #a29bfe, #e84393)';
-                  e.target.style.transform = 'translateY(-1px)';
-                  e.target.style.boxShadow = '0 4px 8px rgba(232, 67, 147, 0.4)';
-                } else {
-                  e.target.style.background = 'rgba(255, 255, 255, 0.1)';
-                  e.target.style.color = 'rgba(255, 255, 255, 0.9)';
-                }
-              }}
-              onMouseOut={(e) => {
-                if (filter === 'completed') {
-                  e.target.style.background = 'linear-gradient(135deg, #e84393, #a29bfe)';
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 2px 4px rgba(232, 67, 147, 0.3)';
-                } else {
-                  e.target.style.background = 'rgba(255, 255, 255, 0.05)';
-                  e.target.style.color = 'rgba(255, 255, 255, 0.6)';
-                }
-              }}
-            >
-              완료
-            </button>
+          </div>
+
+          {/* Filter Buttons */}
+          <div style={{
+            display: 'flex',
+            gap: '6px',
+            marginBottom: '8px'
+          }}>
+            {['all', 'active', 'completed'].map(filterType => (
+              <button
+                key={filterType}
+                onClick={() => setFilter(filterType)}
+                style={{
+                  padding: '6px 12px',
+                  background: filter === filterType 
+                    ? 'rgba(253, 121, 168, 0.2)' 
+                    : 'rgba(255, 255, 255, 0.05)',
+                  border: filter === filterType 
+                    ? '1px solid rgba(253, 121, 168, 0.3)' 
+                    : '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '8px',
+                  color: filter === filterType 
+                    ? 'rgba(253, 121, 168, 1)' 
+                    : 'rgba(255, 255, 255, 0.6)',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  fontWeight: filter === filterType ? '600' : '400'
+                }}
+                onMouseOver={(e) => {
+                  if (filter !== filterType) {
+                    e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                    e.target.style.color = 'rgba(255, 255, 255, 0.8)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (filter !== filterType) {
+                    e.target.style.background = 'rgba(255, 255, 255, 0.05)';
+                    e.target.style.color = 'rgba(255, 255, 255, 0.6)';
+                  }
+                }}
+              >
+                {filterType === 'all' ? '전체' : filterType === 'active' ? '미완료' : '완료'}
+              </button>
+            ))}
+            
+            {todos.some(todo => todo.completed) && (
+              <button
+                onClick={clearCompleted}
+                style={{
+                  padding: '6px 12px',
+                  background: 'rgba(255, 107, 107, 0.1)',
+                  border: '1px solid rgba(255, 107, 107, 0.2)',
+                  borderRadius: '8px',
+                  color: 'rgba(255, 107, 107, 0.8)',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  marginLeft: 'auto'
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.background = 'rgba(255, 107, 107, 0.2)';
+                  e.target.style.color = 'rgba(255, 107, 107, 1)';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.background = 'rgba(255, 107, 107, 0.1)';
+                  e.target.style.color = 'rgba(255, 107, 107, 0.8)';
+                }}
+              >
+                완료된 할일 삭제
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {!isMinimized && (
-        <TodoList todos={filteredTodos} toggleTodo={toggleTodo} deleteTodo={deleteTodo} isMinimized={isMinimized} />
-      )}
-
-      {!isMinimized && todos.length > 0 && (
-        <div style={{ 
-          marginTop: '20px', 
-          textAlign: 'center',
-          borderTop: '1px solid rgba(255, 255, 255, 0.2)',
-          paddingTop: '16px'
-        }}>
-          <button
-            onClick={clearCompleted}
-            style={{ 
-              padding: '6px 12px',
-              background: 'linear-gradient(135deg, #e84393, #a29bfe)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: '500',
-              transition: 'all 0.15s ease-out',
-              boxShadow: '0 2px 4px rgba(232, 67, 147, 0.3)'
-            }}
-            onMouseOver={(e) => {
-              e.target.style.background = 'linear-gradient(135deg, #a29bfe, #e84393)';
-              e.target.style.boxShadow = '0 4px 8px rgba(232, 67, 147, 0.4)';
-              e.target.style.transform = 'translateY(-1px)';
-            }}
-            onMouseOut={(e) => {
-              e.target.style.background = 'linear-gradient(135deg, #e84393, #a29bfe)';
-              e.target.style.boxShadow = '0 2px 4px rgba(232, 67, 147, 0.3)';
-              e.target.style.transform = 'translateY(0)';
-            }}
-          >
-            완료된 항목 삭제
-          </button>
-        </div>
-      )}
-          </>
-        )}
+      {/* Todo List */}
+      <TodoList 
+        todos={filteredTodos} 
+        toggleTodo={toggleTodo} 
+        deleteTodo={deleteTodo} 
+        isMinimized={isMinimized} 
+      />
     </div>
   );
 }
