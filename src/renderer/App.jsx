@@ -416,11 +416,26 @@ function TodoApp() {
     }, 8); // 20ms에서 8ms로 단축
   };
 
+  // 더블클릭으로 축소/확장 토글
+  const handleDoubleClick = useCallback((e) => {
+    // 버튼, 입력 필드, 체크박스가 아닌 빈 영역에서만 동작
+    const isInteractiveElement = e.target.tagName === 'BUTTON' || 
+                                e.target.tagName === 'INPUT' || 
+                                e.target.type === 'checkbox' ||
+                                e.target.closest('button') ||
+                                e.target.closest('input');
+    
+    if (!isInteractiveElement) {
+      toggleMinimize();
+    }
+  }, []);
+
   return (
     <div 
       id="todo-app-root"
       data-app-container="true"
       onMouseDown={handleMouseDown}
+      onDoubleClick={handleDoubleClick}
       style={{ 
         padding: isMinimized ? '10px' : '20px 15px', 
         fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, sans-serif',
